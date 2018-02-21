@@ -83,16 +83,21 @@ A = Ao
 #A = Ao*np.exp(-Ea/(R*Tk))
 
 
-ELA = 1500. # meters
-gamma = .01 # slope of mass balance gradient [meters/year per meter of elevation]
-b = gamma * (zb - ELA)/(365.25*24*60*60) # glacier mass balance rule
-#dbdz = np.diff(b) / np.diff(zb) # lapse rate? change in b with elevation
-
-
 years = 1000. # number of years to run for
 tmax = years * 365.25*24*60*60 # years in seconds
 dt = 365.25*24*60*60 * .002 # seconds - 86400 seconds in one day
 time = np.arange(0,tmax+dt,dt) # time array in seconds
+
+
+ELA = 1500. # meters
+amplitude = 500. # positive and negative 500
+period = 300 * 365.25*24*60*60 # one year in seconds * 100 years
+ELA = ELA + (amplitude * np.sin((2*np.pi*time)/period)) # make a sinusoidal ELA
+# ELA sinusoid = ELA 
+
+gamma = .01 # slope of mass balance gradient [meters/year per meter of elevation]
+b = gamma * (zb - ELA[0])/(365.25*24*60*60) # glacier mass balance rule
+#dbdz = np.diff(b) / np.diff(zb) # lapse rate? change in b with elevation
 
 
 # initialize arrays for loop
@@ -116,28 +121,18 @@ for i in range(len(time)-1):
     #Hedge = np.maximum(0,Hedge[:])
     Q[:,i] = A * ((rho_ice*g*np.abs(dzidx))**3)*(-np.sign(dzidx)) * ((Hedge**5)/5) # calculate Q for all x at this time
     dQdx = np.diff(Q[:,i]) / dx # calculate dQdx for all x at this time
-    b = gamma * (zi[:,i] - ELA)/(365.25*24*60*60) # calculate b based on ice elevation for this time
+    b = gamma * (zi[:,i] - ELA[i])/(365.25*24*60*60) # calculate b based on ice elevation for this time
     dHdt = b[1:-1] - dQdx # calculate dHdt based on b and Q for all x at this time
     H[1:-1,i+1] = H[1:-1,i] + (dHdt * dt) # update H, ice thickness, with H from last time plus dH this time for all x
     H[1:-1,i+1] = np.maximum(0,H[1:-1,i+1]) # take maximum of 0 and H to ensure no negative H
     zi[:,i+1] = zb + H[:,i+1] # update ice elev for next time = bedrock elev + ice thickness
-    
-#%% plot ice volume through time 
-    
-# calculate characteristic time scale
-chartimescale = 0.63212 * V[-10]
 
-# plot ice voume with characteristic time scale
+# plot ice volume through time
 plt.plot((time[:-1]/(365.25*24*60*60)),V[:-1])
-#plt.plot(chartimescale,'.r')
-plt.axhline(chartimescale,0,tmax,linestyle='--',color='k')
-plt.plot(187,chartimescale,'.r')
 plt.xlabel('time [years]')
 plt.ylabel('ice volume [m^3]')
 plt.title('Ice Volume')
-plt.grid(linestyle='--',color='lightgrey')
 
-#equiltime = 187*3.5
 
 #%% plot many frames
     
@@ -162,7 +157,7 @@ for i in range(len(time)-1):
         ax2.plot(x[1:],Q[:,i],'red')
         ax2.grid(color='lightgray',linestyle='--')
         ax2.set_xlim(0,xmax)
-        ax2.set_ylim(0,.0005)
+        ax2.set_ylim(0,.001)
         ax2.set_ylabel('Q [m^2/sec]')
         ax2.set_xlabel('distance [m]')
 
@@ -173,7 +168,7 @@ for i in range(len(time)-1):
 #%% make a movie with ffmpeg
 ## -r = fps
 os.system("rm movie.mp4") # remove a previous movie.mp4 file so don't get overwrite problems
-os.system("ffmpeg -r 15 -pattern_type sequence -i tmp'%d'.png -vcodec mpeg4 movie.mp4") 
+os.system("ffmpeg -r 12 -pattern_type sequence -i tmp'%d'.png -vcodec mpeg4 movie.mp4") 
 os.system("rm tmp*.png")
 
 
@@ -196,4 +191,3 @@ os.system("rm tmp*.png")
 #    ax2.grid(color='lightgray',linestyle='--')
 #    ax2.set_ylabel('Q [m^2/sec]')
 #    ax2.set_xlabel('distance [m]')
-
